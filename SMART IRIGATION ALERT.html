@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Smart Irrigation (Web)</title>
+    <style>
+        /* Simple modern UI inspired by your Swing app */
+        :root {
+            --blue: #1e73ff;
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --muted: #7a7a7a;
+            --green: #00c85a;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: #222
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 18px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card);
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(15, 20, 30, 0.06)
+        }
+
+        header h1 {
+            margin: 0;
+            color: var(--blue);
+            font-size: 26px
+        }
+
+        header .right {
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        header .status {
+            font-weight: 700;
+            color: var(--green);
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        header button {
+            background: #f0f0f0;
+            border: 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 18px
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 6px 18px rgba(15, 20, 30, 0.04)
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            color: #0b6b3a
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px
+        }
+
+        label {
+            width: 150px;
+            font-weight: 600
+        }
+
+        input[type=text],
+        input[type=password],
+        select,
+        input[type=number] {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .progress-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .progress {
+            height: 22px;
+            border-radius: 12px;
+            background: #eee;
+            flex: 1;
+            overflow: hidden
+        }
+
+        .progress>div {
+            height: 100%;
+            background: linear-gradient(90deg, var(--blue), #0080ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 12px
+        }
+
+        .controls button {
+            background: var(--blue);
+            color: #fff;
+            border: 0;
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700
+        }
+
+        .controls .muted-btn {
+            background: #ececec;
+            color: #222
+        }
+
+        /* Login / Register */
+        .auth-wrap {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+            margin-top: 18px
+        }
+
+        .auth {
+            flex: 1
+        }
+
+        .auth h2 {
+            margin-top: 0
+        }
+
+        .small {
+            font-size: 13px;
+            color: var(--muted)
+        }
+
+        .checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        /* Chart */
+        .chart-canvas {
+            width: 100%;
+            height: 260px;
+            background: transparent;
+            border-radius: 10px;
+            display: block
+        }
+
+        /* responsive */
+        @media (max-width:900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            label {
+                width: 120px
+            }
+        }
+
+        /* small helper */
+        .center {
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- Header -->
+        <header>
+            <h1>Smart Irrigation</h1>
+            <div class="right">
+                <div class="status"><span style="color:#ff4d4d">●</span> SYSTEM ONLINE</div>
+                <button id="logoutBtn" style="display:none">Logout</button>
+            </div>
+        </header>
+
+        <!-- Authentication area (login/register). Hidden after login -->
+        <div id="authArea" style="margin-top:18px;">
+            <div class="auth-wrap">
+                <!-- Login -->
+                <div class="auth card" id="loginCard">
+                    <h2>Login</h2>
+                    <div class="row"><label>Username</label><input id="loginUser" type="text" placeholder="username">
+                    </div>
+                    <div class="row"><label>Password</label><input id="loginPass" type="password"
+                            placeholder="password"></div>
+                    <div style="display:flex;gap:8px">
+                        <button id="loginBtn">Login</button>
+                        <button id="toRegister" class="muted-btn">Register</button>
+                    </div>
+                    <p class="small" style="margin-top:10px">This demo stores passwords in cleartext in localStorage. Do
+                        NOT use for production.</p>
+                </div>
+
+                <!-- Register -->
+                <div class="auth card" id="registerCard">
+                    <h2>Create Account</h2>
+                    <div class="row"><label>Username</label><input id="regUser" type="text" placeholder="username">
+                    </div>
+                    <div class="row"><label>Password</label><input id="regPass" type="password" placeholder="password">
+                    </div>
+                    <div class="row"><label>Confirm</label><input id="regPass2" type="password" placeholder="confirm">
+                    </div>
+                    <div style="display:flex;gap:8px">
+                        <button id="registerBtn">Register</button>
+                        <button id="toLogin" class="muted-btn">Back to Login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard area (hidden until logged in) -->
+        <div id="dashboard" style="display:none;margin-top:18px">
+            <div class="card">
+                <h3>CURRENT SYSTEM STATUS</h3>
+                <div id="statusMsg" style="font-size:18px;margin-top:8px">System status is optimal.</div>
+            </div>
+
+            <div class="layout" style="margin-top:18px">
+                <!-- Config card -->
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <h3>Configuration</h3>
+                        <div class="small">Logged in as <strong id="whoami"></strong></div>
+                    </div>
+
+                    <div style="margin-top:12px">
+                        <div class="row">
+                            <label>Crop Type:</label>
+                            <select id="cropType">
+                                <option>Corn</option>
+                                <option>Wheat</option>
+                                <option>Rice</option>
+                                <option>Sugarcane</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <label>Soil Type:</label>
+                            <select id="soilType">
+                                <option>Loam</option>
+                                <option>Sandy</option>
+                                <option>Clay</option>
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <label>Last Irrigated (Days Ago):</label>
+                            <input id="lastIrrig" type="number" min="0" max="99" value="1" />
+                        </div>
+
+                        <div class="row">
+                            <label>Sensor Moisture:</label>
+                            <div class="progress-wrap" style="flex:1">
+                                <div class="progress" id="moistureBar" aria-hidden="true">
+                                    <div style="width:75%">75%</div>
+                                </div>
+                                <div id="moistureLabel" style="width:70px;text-align:right;font-weight:700">75%</div>
+                            </div>
+                        </div>
+
+                        <hr style="border:none;border-top:1px dashed #eee;margin:12px 0">
+
+                        <div class="row">
+                            <label>Sensor Simulation:</label>
+                            <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                                <label class="checkbox"><input id="autoSim" type="checkbox"> <span class="small">Auto
+                                        simulate</span></label>
+                                <input id="simSlider" type="range" min="0" max="100" value="75">
+                                <div style="display:flex;justify-content:space-between">
+                                    <small>0</small><small>25</small><small>50</small><small>75</small><small>100</small>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Chart card -->
+                <div class="card">
+                    <canvas id="chart" class="chart-canvas" width="800" height="260"></canvas>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;gap:12px;align-items:center">
+                    <button id="genPlan">Generate Irrigation Plan</button>
+                    <button id="togglePump" class="muted-btn">Toggle Pump</button>
+                </div>
+                <div class="small">Last updated: <span id="lastUpdated">—</span></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /**************************************************************************
+         * Simple web port of the Swing app
+         * - Uses localStorage to store users: key "irrigation_users" (JSON object username->password)
+         * - Session stored in "irrigation_session" -> username
+         * - Live chart implemented using Canvas and a 60-value ring buffer
+         **************************************************************************/
+
+        // ---------- User store helpers ----------
+        const USER_KEY = 'irrigation_users';
+        const SESSION_KEY = 'irrigation_session';
+
+        function loadUsers() {
+            try {
+                const raw = localStorage.getItem(USER_KEY);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                console.error('user load', e);
+                return {};
+            }
+        }
+        function saveUsers(obj) {
+            localStorage.setItem(USER_KEY, JSON.stringify(obj));
+        }
+        function registerUser(username, password) {
+            username = username.trim();
+            if (!username || !password) return { ok: false, msg: 'Enter username and password.' };
+            const users = loadUsers();
+            if (users[username]) return { ok: false, msg: 'User already exists.' };
+            users[username] = password;
+            saveUsers(users);
+            return { ok: true };
+        }
+        function authenticateUser(username, password) {
+            username = username.trim();
+            const users = loadUsers();
+            return users[username] && users[username] === password;
+        }
+        function setSession(user) {
+            if (user) localStorage.setItem(SESSION_KEY, user);
+            else localStorage.removeItem(SESSION_KEY);
+        }
+        function getSession() { return localStorage.getItem(SESSION_KEY); }
+
+        // ---------- DOM elements ----------
+        const authArea = document.getElementById('authArea');
+        const dashboard = document.getElementById('dashboard');
+        const whoami = document.getElementById('whoami');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const statusMsg = document.getElementById('statusMsg');
+        const lastUpdated = document.getElementById('lastUpdated');
+
+        // login/register controls
+        const loginUser = document.getElementById('loginUser');
+        const loginPass = document.getElementById('loginPass');
+        const loginBtn = document.getElementById('loginBtn');
+        const toRegister = document.getElementById('toRegister');
+
+        const regUser = document.getElementById('regUser');
+        const regPass = document.getElementById('regPass');
+        const regPass2 = document.getElementById('regPass2');
+        const registerBtn = document.getElementById('registerBtn');
+        const toLogin = document.getElementById('toLogin');
+
+        // dashboard controls
+        const lastIrrig = document.getElementById('lastIrrig');
+        const simSlider = document.getElementById('simSlider');
+        const autoSim = document.getElementById('autoSim');
+        const moistureBar = document.getElementById('moistureBar');
+        const moistureLabel = document.getElementById('moistureLabel');
+        const genPlan = document.getElementById('genPlan');
+        const togglePump = document.getElementById('togglePump');
+
+        // chart canvas
+        const canvas = document.getElementById('chart');
+        const ctx = canvas.getContext('2d');
+
+        // ---------- Chart / Data logic ----------
+        const MAX_POINTS = 60;
+        let data = new Array(MAX_POINTS).fill(75); // initialize to 75
+        function addDataPoint(v) {
+            data.push(v);
+            if (data.length > MAX_POINTS) data.shift();
+        }
+
+        function drawChart() {
+            // clear
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            // background
+            ctx.fillStyle = '#f5f7fa';
+            ctx.fillRect(0, 0, w, h);
+
+            const left = 40;
+            const top = 20;
+            const graphW = w - left - 20;
+            const graphH = h - top - 40;
+
+            // axes rect
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(left, top, graphW, graphH);
+
+            // horizontal grid lines and labels (0,25,50,75,100)
+            ctx.font = '12px Segoe UI, Arial';
+            for (let i = 0; i <= 4; i++) {
+                const y = top + (i / 4) * graphH;
+                ctx.strokeStyle = '#e6e6e6';
+                ctx.beginPath();
+                ctx.moveTo(left, y);
+                ctx.lineTo(left + graphW, y);
+                ctx.stroke();
+
+                const label = 100 - i * 25;
+                ctx.fillStyle = '#444';
+                ctx.fillText(label + '%', 6, y + 4);
+            }
+
+            // line
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#1e73ff';
+            ctx.beginPath();
+            for (let i = 0; i < data.length; i++) {
+                const x = left + (i / (MAX_POINTS - 1)) * graphW;
+                const y = top + ((100 - data[i]) / 100) * graphH;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // points
+            ctx.fillStyle = '#0078c8';
+            for (let i = 0; i < data.length; i++) {
+                const x = left + (i / (MAX_POINTS - 1)) * graphW;
+                const y = top + ((100 - data[i]) / 100) * graphH;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // title
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Segoe UI, Arial';
+            ctx.fillText('Live Soil Moisture (%) - Last ' + MAX_POINTS + 's', left, top - 6);
+        }
+
+        // ---------- UI update helpers ----------
+        function updateMoistureUI(value) {
+            value = Math.max(0, Math.min(100, Math.round(value)));
+            const barInner = moistureBar.querySelector('div');
+            barInner.style.width = value + '%';
+            barInner.textContent = value + '%';
+            moistureLabel.textContent = value + '%';
+            if (value < 50) statusMsg.textContent = 'Irrigation is required! Soil moisture is low.';
+            else statusMsg.textContent = 'Moisture level is optimal.';
+        }
+
+        // ---------- tick logic (1s) ----------
+        let tickTimer = null;
+        function startTick() {
+            if (tickTimer) return;
+            tickTimer = setInterval(() => {
+                let val;
+                if (autoSim.checked) {
+                    const base = Number(simSlider.value);
+                    const noise = Math.floor(Math.random() * 11) - 5; // -5..+5
+                    val = Math.max(0, Math.min(100, base + noise));
+                } else {
+                    const lastDays = Math.max(0, Number(lastIrrig.value) || 0);
+                    val = Math.max(0, 100 - (lastDays * 10));
+                }
+                updateMoistureUI(val);
+                addDataPoint(val);
+                drawChart();
+                lastUpdated.textContent = new Date().toLocaleTimeString();
+            }, 1000);
+        }
+        function stopTick() {
+            if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+        }
+
+        // ---------- auth flows ----------
+        function showDashboardFor(user) {
+            authArea.style.display = 'none';
+            dashboard.style.display = 'block';
+            logoutBtn.style.display = 'inline-block';
+            whoami.textContent = user;
+            setSession(user);
+            startTick();
+            drawChart();
+        }
+        function hideDashboard() {
+            authArea.style.display = 'block';
+            dashboard.style.display = 'none';
+            logoutBtn.style.display = 'none';
+            setSession(null);
+            stopTick();
+        }
+
+        // initial check for existing session
+        (function init() {
+            const session = getSession();
+            if (session) {
+                showDashboardFor(session);
+            } else {
+                hideDashboard();
+            }
+            drawChart();
+        })();
+
+        // ---------- event listeners ----------
+        loginBtn.addEventListener('click', () => {
+            const u = loginUser.value.trim();
+            const p = loginPass.value;
+            if (!u || !p) { alert('Enter username and password'); return; }
+            if (authenticateUser(u, p)) {
+                alert('Login Successful!');
+                showDashboardFor(u);
+            } else alert('Invalid Login!');
+        });
+
+        toRegister.addEventListener('click', () => {
+            document.getElementById('loginCard').style.display = 'none';
+            document.getElementById('registerCard').style.display = 'block';
+        });
+        toLogin.addEventListener('click', () => {
+            document.getElementById('registerCard').style.display = 'none';
+            document.getElementById('loginCard').style.display = 'block';
+        });
+
+        registerBtn.addEventListener('click', () => {
+            const u = regUser.value.trim();
+            const p = regPass.value;
+            const p2 = regPass2.value;
+            if (!u || !p) { alert('Enter username and password'); return; }
+            if (p !== p2) { alert('Passwords do not match'); return; }
+            const r = registerUser(u, p);
+            if (r.ok) { alert('Registration successful. Please login.'); document.getElementById('registerCard').style.display = 'none'; document.getElementById('loginCard').style.display = 'block'; }
+            else alert(r.msg || 'Registration failed.');
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            if (confirm('Logout?')) hideDashboard();
+        });
+
+        // generate plan / pump
+        genPlan.addEventListener('click', () => {
+            const currentMoist = parseInt(moistureLabel.textContent) || 0;
+            if (currentMoist < 50) alert('Irrigation Required!\nMoisture: ' + currentMoist + '%');
+            else alert('No Irrigation Needed.\nMoisture: ' + currentMoist + '%');
+        });
+        togglePump.addEventListener('click', () => alert('Pump toggled (simulated).'));
+
+        // some reactive UI wiring
+        simSlider.addEventListener('input', () => {
+            if (!autoSim.checked) {
+                // when not auto, slider doesn't control moisture; but we still reflect slider visually
+            }
+        });
+        autoSim.addEventListener('change', () => {
+            // nothing else needed; tick picks behavior
+        });
+        lastIrrig.addEventListener('change', () => {
+            // immediate update when not autoSim
+            if (!autoSim.checked) {
+                const lastDays = Math.max(0, Number(lastIrrig.value) || 0);
+                const val = Math.max(0, 100 - lastDays * 10);
+                updateMoistureUI(val);
+                addDataPoint(val);
+                drawChart();
+            }
+        });
+
+        // handle window resize to redraw chart
+        window.addEventListener('resize', () => drawChart());
+
+        // initialize small visibility toggles
+        document.getElementById('registerCard').style.display = 'none';
+        document.getElementById('loginCard').style.display = 'block';
+
+        // ensure a default user exists for demo convenience (optional)
+        (function ensureDemoUser() {
+            const users = loadUsers();
+            if (!users['demo']) { users['demo'] = 'demo'; saveUsers(users); }
+        })();
+
+        // start tick if already logged in
+        if (getSession()) startTick();
+
+    </script>
+</body>
+
+</html>
